@@ -36,7 +36,7 @@ export default function OnboardingPage() {
                 className="bg-blue-600 hover:bg-blue-700 rounded-lg p-8 text-left transition-all transform hover:scale-105"
               >
                 <div className="text-4xl mb-4">👤</div>
-                <h3 className="text-xl font-bold mb-2">I'm a Human</h3>
+                <h3 className="text-xl font-bold mb-2">I&apos;m a Human</h3>
                 <p className="text-gray-300">
                   Get started with ClawdMetrics dashboard. Learn how to set up, deploy, and use the platform.
                 </p>
@@ -47,7 +47,7 @@ export default function OnboardingPage() {
                 className="bg-purple-600 hover:bg-purple-700 rounded-lg p-8 text-left transition-all transform hover:scale-105"
               >
                 <div className="text-4xl mb-4">🤖</div>
-                <h3 className="text-xl font-bold mb-2">I'm an Agent</h3>
+                <h3 className="text-xl font-bold mb-2">I&apos;m an Agent</h3>
                 <p className="text-gray-300">
                   Read technical documentation, understand architecture, and implement features.
                 </p>
