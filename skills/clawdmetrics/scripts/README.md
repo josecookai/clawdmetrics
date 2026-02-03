@@ -136,3 +136,154 @@ export NEXT_PUBLIC_SUPABASE_ANON_KEY='your_key_here'
 
 - [Supabase Auth API](https://supabase.com/docs/reference/javascript/auth-api)
 - [OAuth PKCE Flow](https://oauth.net/2/pkce/)
+
+---
+
+# Stats Reporting Script
+
+## 📋 概述
+
+`report_stats.py` 是一个命令行工具，用于向 Supabase 报告每日统计数据（交互次数、输入 token、输出 token）。
+
+## 🚀 使用方法
+
+### 基本用法
+
+```bash
+python report_stats.py <interaction_count> <input_tokens> <output_tokens>
+```
+
+### 示例
+
+```bash
+# 设置环境变量
+export SUPABASE_SERVICE_KEY='your_service_role_key_here'
+
+# 运行脚本
+python report_stats.py 10 5000 3000
+```
+
+## 📋 前置要求
+
+1. **Python 3.6+**
+2. **requests 库**：
+   ```bash
+   pip install requests
+   ```
+3. **环境变量**：
+   - `SUPABASE_SERVICE_KEY`: Supabase service role key
+4. **会话文件**：
+   - `~/.config/clawdmetrics/session.json` (由 `exchange_code.py` 创建)
+
+## 🔧 功能特性
+
+- ✅ 从命令行接受三个参数（interaction_count, input_tokens, output_tokens）
+- ✅ 从 `~/.config/clawdmetrics/session.json` 加载用户会话
+- ✅ 提取 access_token 和 user_id
+- ✅ 使用 service role key 进行认证
+- ✅ 调用 Supabase RPC 函数 `upsert_daily_stats`
+- ✅ 增量更新当天的统计数据
+- ✅ 提供详细的成功/错误消息
+
+## 📊 工作原理
+
+1. **加载会话**: 从 `~/.config/clawdmetrics/session.json` 读取用户会话
+2. **提取信息**: 获取 access_token 和 user_id
+3. **认证**: 使用 service role key 进行 Supabase 认证
+4. **调用 RPC**: 调用 `upsert_daily_stats` 函数更新统计数据
+5. **增量更新**: 函数会增量更新当天的统计数据，而不是覆盖
+
+## 📝 参数说明
+
+- `interaction_count`: 交互次数（非负整数）
+- `input_tokens`: 输入 token 数量（非负整数）
+- `output_tokens`: 输出 token 数量（非负整数）
+
+## ⚠️ 注意事项
+
+### Service Role Key
+
+- ⚠️ Service role key 具有管理员权限，请妥善保管
+- ⚠️ 不要将 service role key 提交到版本控制
+- ⚠️ 在生产环境中使用环境变量或密钥管理服务
+
+### RPC 函数要求
+
+脚本调用 `upsert_daily_stats` RPC 函数，该函数需要：
+- 接受参数：`interaction_count`, `input_tokens`, `output_tokens`, `user_id` (可选)
+- 增量更新当天的统计数据
+- 如果记录不存在，则创建新记录
+
+### 会话文件
+
+- 会话文件必须由 `exchange_code.py` 创建
+- 如果会话过期，需要重新运行 `exchange_code.py`
+
+## 🐛 故障排除
+
+### 错误：会话文件未找到
+
+```
+❌ Error: Session file not found.
+```
+
+**解决**：先运行 `exchange_code.py` 创建会话文件
+
+### 错误：环境变量未设置
+
+```
+❌ Error: SUPABASE_SERVICE_KEY environment variable is not set.
+```
+
+**解决**：设置环境变量
+```bash
+export SUPABASE_SERVICE_KEY='your_service_role_key_here'
+```
+
+### 错误：RPC 函数未找到 (404)
+
+**解决**：在 Supabase 数据库中创建 `upsert_daily_stats` 函数
+
+### 错误：权限不足 (403)
+
+**解决**：确保 service role key 有权限调用 RPC 函数
+
+## 📝 示例输出
+
+```
+🚀 Supabase Stats Reporting
+============================================================
+
+1️⃣ Loading session...
+   ✓ Session loaded from /Users/username/.config/clawdmetrics/session.json
+   ✓ Access token found
+   ✓ User ID: 12345678-1234-1234-1234-123456789abc
+
+2️⃣ Checking service role key...
+   ✓ Service role key found
+
+3️⃣ Reporting stats...
+📊 Reporting stats to Supabase...
+   Endpoint: https://cvzmvsnztqtehoquirft.supabase.co/rest/v1/rpc/upsert_daily_stats
+   Interaction Count: 10
+   Input Tokens: 5000
+   Output Tokens: 3000
+   User ID: 12345678-1234-1234-1234-123456789abc
+✅ Successfully reported stats!
+
+📋 Stats Summary:
+   --------------------------------------------------
+   date: 2026-02-03
+   user_id: 12345678-1234-1234-1234-123456789abc
+   interaction_count: 10
+   input_tokens: 5000
+   output_tokens: 3000
+   --------------------------------------------------
+
+✅ Done! Stats have been reported successfully.
+```
+
+## 🔗 相关文档
+
+- [Supabase RPC Functions](https://supabase.com/docs/reference/javascript/rpc)
+- [Supabase Service Role Key](https://supabase.com/docs/guides/api/using-the-service-role-key)
