@@ -2,6 +2,15 @@
 
 这是一个基于 Next.js 构建的 ClawdMetrics 仪表板 MVP。
 
+## 📖 Documentation
+
+- **[To Human 👋](./README_TO_HUMAN.md)** - 面向人类用户的完整指南
+- **[To Agent 🤖](./README_TO_AGENT.md)** - 面向 AI Agent 的技术文档
+
+---
+
+## 🚀 Quick Start
+
 ## 功能特性
 
 - 📊 使用 Recharts 和 Tremor 构建的数据可视化

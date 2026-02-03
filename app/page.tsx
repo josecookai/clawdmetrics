@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import Link from 'next/link'
 import { BarChart, Table, TableBody, TableCell, TableHead, TableHeaderCell, TableRow } from '@tremor/react'
 import { supabase } from '@/lib/supabaseClient'
 
@@ -109,7 +110,15 @@ export default function Home() {
   return (
     <main className="min-h-screen bg-black text-white p-8">
       <div className="max-w-7xl mx-auto">
-        <h1 className="text-4xl font-bold mb-8 text-center">ClawdMetrics Dashboard</h1>
+        <div className="flex items-center justify-between mb-8">
+          <h1 className="text-4xl font-bold">ClawdMetrics Dashboard</h1>
+          <Link
+            href="/onboarding"
+            className="bg-blue-600 hover:bg-blue-700 px-4 py-2 rounded transition-colors text-sm"
+          >
+            📖 Get Started
+          </Link>
+        </div>
         
         {loading && (
           <div className="text-center py-12">
