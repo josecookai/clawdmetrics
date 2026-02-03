@@ -5,10 +5,11 @@ import { BarChart, Table, TableBody, TableCell, TableHead, TableHeaderCell, Tabl
 import { supabase } from '@/lib/supabaseClient'
 
 interface LeaderboardEntry {
-  id: string
+  id?: string
   name: string
   score: number
   rank: number
+  user?: string  // 兼容函数返回的 user 字段
   [key: string]: any
 }
 
@@ -24,24 +25,66 @@ export default function Home() {
         setError(null)
         
         // 调用 Supabase 函数 get_leaderboard
-        const { data: result, error: supabaseError } = await supabase.functions.invoke('get_leaderboard')
+        const { data: result, error: supabaseError } = await supabase.functions.invoke('get_leaderboard', {
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        })
         
         if (supabaseError) {
-          throw supabaseError
+          console.error('Supabase function error:', supabaseError)
+          // 提供更详细的错误信息
+          const errorMessage = supabaseError.message || 'Unknown error'
+          const errorContext = supabaseError.context || {}
+          
+          // 检查是否是函数未找到的错误
+          if (errorMessage.includes('Function not found') || errorMessage.includes('404')) {
+            throw new Error('Edge Function "get_leaderboard" 未找到。请确保已在 Supabase Dashboard 中部署该函数。')
+          }
+          
+          // 检查是否是网络错误
+          if (errorMessage.includes('Failed to send') || errorMessage.includes('fetch')) {
+            throw new Error('无法连接到 Supabase Edge Function。请检查网络连接和函数是否已部署。')
+          }
+          
+          throw new Error(`Edge Function 错误: ${errorMessage}`)
         }
+        
+        // 处理不同的数据格式
+        let leaderboardData: LeaderboardEntry[] = []
         
         if (result && Array.isArray(result)) {
           // 如果返回的是数组，直接使用
-          setData(result)
+          leaderboardData = result
+        } else if (result && result.leaderboard && Array.isArray(result.leaderboard)) {
+          // 如果返回的是对象，包含 leaderboard 字段（Supabase 函数返回格式）
+          leaderboardData = result.leaderboard.map((item: any, index: number) => ({
+            id: item.id || `user-${index}`,
+            name: item.user || item.name || `用户 ${index + 1}`, // 兼容 user 和 name 字段
+            score: item.score || 0,
+            rank: item.rank || index + 1,
+            ...item // 保留其他字段
+          }))
         } else if (result && result.data && Array.isArray(result.data)) {
           // 如果返回的是对象，包含 data 字段
-          setData(result.data)
+          leaderboardData = result.data
+        } else if (result === null || result === undefined) {
+          // 如果返回 null 或 undefined，可能是函数返回了空数据
+          leaderboardData = []
         } else {
-          throw new Error('Invalid data format')
+          console.warn('Unexpected data format:', result)
+          throw new Error('返回的数据格式不正确。期望格式: {leaderboard: [...]} 或 [...]')
         }
+        
+        setData(leaderboardData)
       } catch (err) {
         console.error('Error fetching leaderboard:', err)
-        setError(err instanceof Error ? err.message : 'Failed to fetch leaderboard data')
+        const errorMessage = err instanceof Error 
+          ? err.message 
+          : typeof err === 'string' 
+            ? err 
+            : 'Failed to fetch leaderboard data'
+        setError(errorMessage)
       } finally {
         setLoading(false)
       }
@@ -52,7 +95,7 @@ export default function Home() {
 
   // 准备图表数据
   const chartData = data.map((item) => ({
-    name: item.name || `用户 ${item.id}`,
+    name: item.name || item.user || `用户 ${item.id || item.rank}`,
     score: item.score || 0,
   }))
 
@@ -102,9 +145,9 @@ export default function Home() {
                 </TableHead>
                 <TableBody>
                   {data.map((item, index) => (
-                    <TableRow key={item.id || index}>
+                    <TableRow key={item.id || `rank-${item.rank || index}`}>
                       <TableCell className="text-gray-300">{item.rank || index + 1}</TableCell>
-                      <TableCell className="text-gray-300">{item.name || `用户 ${item.id}`}</TableCell>
+                      <TableCell className="text-gray-300">{item.name || item.user || `用户 ${index + 1}`}</TableCell>
                       <TableCell className="text-gray-300">{item.score || 0}</TableCell>
                     </TableRow>
                   ))}
