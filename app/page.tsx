@@ -34,6 +34,11 @@ export default function Home() {
           // 提供更详细的错误信息
           const errorMessage = supabaseError.message || 'Unknown error'
           
+          // 检查是否是 API key 错误
+          if (errorMessage.includes('Invalid API key') || errorMessage.includes('JWT') || errorMessage.includes('invalid')) {
+            throw new Error('API 密钥无效。请检查 Vercel 环境变量中的 NEXT_PUBLIC_SUPABASE_ANON_KEY 是否正确配置。')
+          }
+          
           // 检查是否是函数未找到的错误
           if (errorMessage.includes('function') && errorMessage.includes('does not exist')) {
             throw new Error('PostgreSQL 函数 "get_leaderboard" 未找到。请确保已在 Supabase 数据库中创建该函数。')
@@ -42,6 +47,11 @@ export default function Home() {
           // 检查是否是权限错误
           if (errorMessage.includes('permission') || errorMessage.includes('denied')) {
             throw new Error('没有权限调用该函数。请检查数据库权限设置。')
+          }
+          
+          // 检查是否是环境变量缺失
+          if (errorMessage.includes('Missing') || errorMessage.includes('undefined')) {
+            throw new Error('环境变量未配置。请在 Vercel 设置中添加 NEXT_PUBLIC_SUPABASE_URL 和 NEXT_PUBLIC_SUPABASE_ANON_KEY。')
           }
           
           throw new Error(`数据库函数错误: ${errorMessage}`)
