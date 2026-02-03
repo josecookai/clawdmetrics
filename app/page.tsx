@@ -24,30 +24,27 @@ export default function Home() {
         setLoading(true)
         setError(null)
         
-        // 调用 Supabase 函数 get_leaderboard
-        const { data: result, error: supabaseError } = await supabase.functions.invoke('get_leaderboard', {
-          headers: {
-            'Content-Type': 'application/json',
-          },
+        // 调用 PostgreSQL RPC 函数 get_leaderboard
+        const { data: result, error: supabaseError } = await supabase.rpc('get_leaderboard', { 
+          days_ago: 7 
         })
         
         if (supabaseError) {
-          console.error('Supabase function error:', supabaseError)
+          console.error('Supabase RPC error:', supabaseError)
           // 提供更详细的错误信息
           const errorMessage = supabaseError.message || 'Unknown error'
-          const errorContext = supabaseError.context || {}
           
           // 检查是否是函数未找到的错误
-          if (errorMessage.includes('Function not found') || errorMessage.includes('404')) {
-            throw new Error('Edge Function "get_leaderboard" 未找到。请确保已在 Supabase Dashboard 中部署该函数。')
+          if (errorMessage.includes('function') && errorMessage.includes('does not exist')) {
+            throw new Error('PostgreSQL 函数 "get_leaderboard" 未找到。请确保已在 Supabase 数据库中创建该函数。')
           }
           
-          // 检查是否是网络错误
-          if (errorMessage.includes('Failed to send') || errorMessage.includes('fetch')) {
-            throw new Error('无法连接到 Supabase Edge Function。请检查网络连接和函数是否已部署。')
+          // 检查是否是权限错误
+          if (errorMessage.includes('permission') || errorMessage.includes('denied')) {
+            throw new Error('没有权限调用该函数。请检查数据库权限设置。')
           }
           
-          throw new Error(`Edge Function 错误: ${errorMessage}`)
+          throw new Error(`数据库函数错误: ${errorMessage}`)
         }
         
         // 处理不同的数据格式
