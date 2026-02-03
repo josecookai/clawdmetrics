@@ -5,98 +5,45 @@ Supabase Stats Reporting Script
 This script reports daily statistics (interaction count, input tokens, output tokens)
 to Supabase by calling an RPC function that handles upsert logic.
 
+This version is designed for Agent environments and relies on environment variables
+for configuration instead of user-specific session files.
+
 Usage:
     python report_stats.py <interaction_count> <input_tokens> <output_tokens>
 
 Example:
     python report_stats.py 10 5000 3000
+
+Environment Variables Required:
+    SUPABASE_URL: Supabase project URL
+    SUPABASE_SERVICE_KEY: Supabase service role key
 """
 
 import os
 import sys
-import json
 import requests
-from pathlib import Path
-from datetime import datetime
-from typing import Dict, Any, Optional
+from typing import Dict, Any
 
 
-# Configuration
-SUPABASE_URL = "https://cvzmvsnztqtehoquirft.supabase.co"
-RPC_ENDPOINT = f"{SUPABASE_URL}/rest/v1/rpc/upsert_daily_stats"
-SESSION_FILE = Path.home() / ".config" / "clawdmetrics" / "session.json"
-
-
-def load_session() -> Dict[str, Any]:
+def get_supabase_url() -> str:
     """
-    Load user session from session.json file.
+    Get Supabase URL from environment variable.
     
     Returns:
-        dict: Session data containing access_token and user info
+        str: Supabase project URL
         
     Raises:
-        SystemExit: If session file doesn't exist or is invalid
+        SystemExit: If environment variable is not set
     """
-    if not SESSION_FILE.exists():
-        print("❌ Error: Session file not found.")
-        print(f"   Expected location: {SESSION_FILE}")
-        print("   Please run exchange_code.py first to create a session.")
+    supabase_url = os.getenv("SUPABASE_URL")
+    
+    if not supabase_url:
+        print("❌ Error: SUPABASE_URL environment variable is not set.")
+        print("   Please set it before running this script:")
+        print("   export SUPABASE_URL='https://your-project.supabase.co'")
         sys.exit(1)
     
-    try:
-        with open(SESSION_FILE, 'r') as f:
-            session_data = json.load(f)
-        
-        if not isinstance(session_data, dict):
-            raise ValueError("Session file must contain a JSON object")
-        
-        return session_data
-        
-    except json.JSONDecodeError as e:
-        print(f"❌ Error: Invalid JSON in session file: {str(e)}")
-        sys.exit(1)
-    except IOError as e:
-        print(f"❌ Error: Cannot read session file: {str(e)}")
-        sys.exit(1)
-
-
-def get_access_token(session_data: Dict[str, Any]) -> str:
-    """
-    Extract access_token from session data.
-    
-    Args:
-        session_data: Session dictionary
-        
-    Returns:
-        str: Access token
-        
-    Raises:
-        SystemExit: If access_token is not found
-    """
-    access_token = session_data.get('access_token')
-    
-    if not access_token:
-        print("❌ Error: access_token not found in session file.")
-        print("   The session may be expired or invalid.")
-        print("   Please run exchange_code.py again to refresh the session.")
-        sys.exit(1)
-    
-    return access_token
-
-
-def get_user_id(session_data: Dict[str, Any]) -> Optional[str]:
-    """
-    Extract user ID from session data.
-    
-    Args:
-        session_data: Session dictionary
-        
-    Returns:
-        str or None: User ID if found
-    """
-    if 'user' in session_data and isinstance(session_data['user'], dict):
-        return session_data['user'].get('id')
-    return None
+    return supabase_url
 
 
 def get_service_role_key() -> str:
@@ -124,9 +71,8 @@ def report_stats(
     interaction_count: int,
     input_tokens: int,
     output_tokens: int,
-    access_token: str,
-    service_key: str,
-    user_id: Optional[str] = None
+    supabase_url: str,
+    service_key: str
 ) -> Dict[str, Any]:
     """
     Report statistics to Supabase by calling the upsert_daily_stats RPC function.
@@ -135,9 +81,8 @@ def report_stats(
         interaction_count: Number of interactions
         input_tokens: Number of input tokens
         output_tokens: Number of output tokens
-        access_token: User's access token (for identifying user)
+        supabase_url: Supabase project URL
         service_key: Supabase service role key (for authentication)
-        user_id: Optional user ID from session
         
     Returns:
         dict: Response from Supabase
@@ -145,12 +90,12 @@ def report_stats(
     Raises:
         SystemExit: If the request fails
     """
+    rpc_endpoint = f"{supabase_url}/rest/v1/rpc/upsert_daily_stats"
+    
     headers = {
         "Content-Type": "application/json",
         "apikey": service_key,
         "Authorization": f"Bearer {service_key}",
-        # Include user's access token in a custom header for user identification
-        "X-User-Token": access_token,
     }
     
     # Prepare payload for RPC function
@@ -160,21 +105,15 @@ def report_stats(
         "output_tokens": output_tokens,
     }
     
-    # Add user_id if available
-    if user_id:
-        payload["user_id"] = user_id
-    
     print(f"📊 Reporting stats to Supabase...")
-    print(f"   Endpoint: {RPC_ENDPOINT}")
+    print(f"   Endpoint: {rpc_endpoint}")
     print(f"   Interaction Count: {interaction_count}")
     print(f"   Input Tokens: {input_tokens}")
     print(f"   Output Tokens: {output_tokens}")
-    if user_id:
-        print(f"   User ID: {user_id}")
     
     try:
         response = requests.post(
-            RPC_ENDPOINT,
+            rpc_endpoint,
             headers=headers,
             json=payload,
             timeout=30
@@ -253,6 +192,9 @@ def main():
         print(f"  python {sys.argv[0]} <interaction_count> <input_tokens> <output_tokens>")
         print("\nExample:")
         print(f"  python {sys.argv[0]} 10 5000 3000")
+        print("\nEnvironment Variables Required:")
+        print("  SUPABASE_URL: Supabase project URL")
+        print("  SUPABASE_SERVICE_KEY: Supabase service role key")
         sys.exit(1)
     
     try:
@@ -272,34 +214,23 @@ def main():
     print("🚀 Supabase Stats Reporting")
     print("=" * 60)
     
-    # Load session
-    print("\n1️⃣ Loading session...")
-    session_data = load_session()
-    print(f"   ✓ Session loaded from {SESSION_FILE}")
-    
-    # Extract access token
-    access_token = get_access_token(session_data)
-    print(f"   ✓ Access token found")
-    
-    # Extract user ID (optional)
-    user_id = get_user_id(session_data)
-    if user_id:
-        print(f"   ✓ User ID: {user_id}")
+    # Get Supabase URL from environment
+    print("\n1️⃣ Checking configuration...")
+    supabase_url = get_supabase_url()
+    print(f"   ✓ Supabase URL: {supabase_url}")
     
     # Get service role key
-    print("\n2️⃣ Checking service role key...")
     service_key = get_service_role_key()
     print(f"   ✓ Service role key found")
     
     # Report stats
-    print("\n3️⃣ Reporting stats...")
+    print("\n2️⃣ Reporting stats...")
     result = report_stats(
         interaction_count=interaction_count,
         input_tokens=input_tokens,
         output_tokens=output_tokens,
-        access_token=access_token,
-        service_key=service_key,
-        user_id=user_id
+        supabase_url=supabase_url,
+        service_key=service_key
     )
     
     # Print summary
